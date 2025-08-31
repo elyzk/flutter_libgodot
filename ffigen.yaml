@@ -1,0 +1,5 @@
+name: LibGodotBindings
+output: 'lib/src/bindings.dart'
+headers:
+  entry-points:
+    - 'lib/include/libgodot.h'
