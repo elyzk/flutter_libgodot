@@ -43,6 +43,11 @@ class _GodotWidgetState extends State<GodotWidget> {
     Future<void> future = godot.onReady();
     future.then((_) {
       setState(() => init = true);
+
+      // Then try to start/control the instance
+      Future.delayed(Duration(milliseconds: 500), () {
+        godot.startGodot();
+      });
     });
   }
   

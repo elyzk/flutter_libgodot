@@ -178,5 +178,97 @@ class GodotWrapper {
     calloc.free(returnValue);
   }
 
-  
+  // Method to call methods directly on the Godot instance object
+  Future<void> callInstanceMethod(String methodName, [List<dynamic>? args]) async {
+    await onReady();
+    
+    if (godotInstance == nullptr || interface.objectMethodBindCall == null || interface.classdbGetMethodBind == null) {
+      throw Exception('Godot instance or interface not ready');
+    }
+    
+    // The Godot instance is likely of class "MainLoop" or "SceneTree"
+    // Let's try to get the method bind from the appropriate class
+    final methodNamePtr = methodName.toNativeUtf8();
+    
+    try {
+      // Try getting method bind from different potential classes
+      final classNames = ['MainLoop', 'SceneTree', 'Engine', 'Object'];
+      GDExtensionMethodBindPtr? methodBind;
+      String? foundClassName;
+      
+      for (final className in classNames) {
+        final classNamePtr = className.toNativeUtf8();
+        try {
+          final bind = interface.classdbGetMethodBind!(
+            classNamePtr.cast<Char>() as GDExtensionConstStringNamePtr,
+            methodNamePtr.cast<Char>() as GDExtensionConstStringNamePtr,
+            0,
+          );
+          
+          if (bind != nullptr) {
+            methodBind = bind;
+            foundClassName = className;
+            break;
+          }
+        } finally {
+          calloc.free(classNamePtr);
+        }
+      }
+      
+      if (methodBind == nullptr) {
+        throw Exception('Method $methodName not found in any expected class');
+      }
+      
+      print('Found method $methodName in class $foundClassName');
+      
+      // Prepare arguments - for now, assume no arguments
+      final argCount = args?.length ?? 0;
+      
+      // Prepare return value space (Godot variants are typically 24 bytes)
+      final returnValue = calloc<Uint8>(24);
+      final callError = calloc<GDExtensionCallError>();
+      
+      try {
+        // Call the method on the instance
+        interface.objectMethodBindCall!(
+          methodBind!,
+          godotInstance!, // This is our Godot instance
+          nullptr, // No arguments for now
+          argCount,
+          returnValue.cast<Void>(),
+          callError,
+        );
+        
+        // Check for call errors
+        final error = callError.ref;
+        if (error.error != 0) { // Assuming 0 means no error
+          print('Call error: ${error.error}');
+        } else {
+          print('Successfully called $methodName on Godot instance');
+        }
+        
+      } finally {
+        calloc.free(returnValue);
+        calloc.free(callError);
+      }
+      
+    } finally {
+      calloc.free(methodNamePtr);
+    }
+  }
+
+  // Specific methods for Godot instance control
+  Future<void> startGodot() async {
+    try {
+      await callInstanceMethod('start');
+    } catch (e) {
+      print('Error starting Godot: $e');
+      // Try alternative method names
+      try {
+        await callInstanceMethod('_ready');
+      } catch (e2) {
+        print('Error with _ready: $e2');
+      }
+    }
+  }
 }
