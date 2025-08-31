@@ -1,9 +1,5 @@
-import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
-
-import 'package:ffi/ffi.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_libgodot/godot/wrapper.dart';
 import '../src/bindings.dart';
 
@@ -26,6 +22,11 @@ class GodotInterface {
   late final DartGDExtensionInterfaceObjectMethodBindCallFunction? objectMethodBindCall;
   late final DartGDExtensionInterfaceClassdbGetMethodBindFunction? classdbGetMethodBind;
   late final DartGDExtensionInterfaceObjectGetInstanceBindingFunction? objectGetInstanceBinding;
+  late final DartGDExtensionInterfaceStringNameNewWithUtf8CharsFunction? stringNameNewWithUtf8Chars;
+  
+  void Function(
+    Pointer<Void> stringName,
+  )? stringNameDestroy;
   
   bool initialize() {
     
@@ -49,9 +50,18 @@ class GodotInterface {
     if (getInstanceBindingPtr != null) {
       objectGetInstanceBinding = getInstanceBindingPtr.cast<NativeFunction<GDExtensionInterfaceObjectGetInstanceBindingFunction>>().asFunction<DartGDExtensionInterfaceObjectGetInstanceBindingFunction>();
     }
+
+    final getStringNameNewPtr = getInterfacePtr('string_name_new_with_utf8_chars');
+    if (getStringNameNewPtr != null) {
+      stringNameNewWithUtf8Chars = getStringNameNewPtr.cast<NativeFunction<GDExtensionInterfaceStringNameNewWithUtf8CharsFunction>>().asFunction<DartGDExtensionInterfaceStringNameNewWithUtf8CharsFunction>();
+    }
+
+    // Need a stringNameDestroy to avoid memory leaks
+
     return variantCall != null && 
            objectMethodBindCall != null && 
            classdbGetMethodBind != null &&
-           objectGetInstanceBinding != null;
+           objectGetInstanceBinding != null &&
+           stringNameNewWithUtf8Chars != null;
   }
 }

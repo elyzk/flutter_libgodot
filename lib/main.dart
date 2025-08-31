@@ -44,6 +44,9 @@ class _GodotWidgetState extends State<GodotWidget> {
     future.then((_) {
       setState(() => init = true);
 
+      // Determine the native typing of the Godot instance
+      // godot.inspectInstance();
+
       // Then try to start/control the instance
       Future.delayed(Duration(milliseconds: 500), () {
         godot.startGodot();
