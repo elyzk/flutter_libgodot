@@ -7,35 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'src/bindings.dart';
 
-typedef GDExtensionInitializationNative = Uint8 Function(
-  GDExtensionInterfaceGetProcAddress,
-  GDExtensionClassLibraryPtr,
-  Pointer<GDExtensionInitialization>,
-);
-
-  // -------- typedefs for the init/deinit callbacks --------
-// (Adjust the Int32/Uint8 to match your ffigen output if it generated enums)
-typedef _LevelInitNative = Void Function(Pointer<Void> userdata, UnsignedInt level);
-typedef _LevelInitDart   = void Function(Pointer<Void> userdata, u_int32_t level);
-
-// int onInit(
-//   GDExtensionInterfaceGetProcAddress getProc,
-//   GDExtensionClassLibraryPtr lib,
-//   Pointer<GDExtensionInitialization> init,
-// ) {
-//   print("Godot initializing");
-//   return 1; // true
-// }
-
-LibGodotBindings getGodotBindings() {
-  final exeDir = File(Platform.resolvedExecutable).parent;
-  final libPath = '${exeDir.path}/../Frameworks/libgodot.dylib';
-  final dylib = DynamicLibrary.open(libPath);
-  final godot = LibGodotBindings(dylib);
-
-  return godot;
-}
-
 void main() {
   runApp(const MainApp());
 }
@@ -52,39 +23,60 @@ class MainApp extends StatelessWidget {
     );
   }
 }
-// Called by Godot during init / deinit at specific levels
+
+// Generate ffigen bindings from libgodot binary
+LibGodotBindings getGodotBindings() {
+  final exeDir = File(Platform.resolvedExecutable).parent;
+  final libPath = '${exeDir.path}/../Frameworks/libgodot.dylib'; // macOS only (iOS maybe?)
+  final dylib = DynamicLibrary.open(libPath);
+  final godot = LibGodotBindings(dylib);
+
+  return godot;
+}
+
+// This code is called at some point during the instance initialization process
+// Not sure how to implement, so here is the skeleton for now
 void _onLevelInit(Pointer<Void> userdata, int level) {
 }
 
 void _onLevelDeinit(Pointer<Void> userdata, int level) {
 }
 
-// GDExtensionInitializationFunction
+// native C typedef of a LevelInit/Deinit function 
+typedef _LevelInitNative = Void Function(Pointer<Void> userdata, UnsignedInt level);
 
+
+// This is an implementation of ffigen's GDExtensionInitializationFunctionFunction
+// We use int instead of GDExtensionBool
 int onInit(
   GDExtensionInterfaceGetProcAddress getProcAddress,
   GDExtensionClassLibraryPtr library,
   Pointer<GDExtensionInitialization> rInitialization,
 ) {
-  // // Initialize all of the GDExtensionInitialization variables
+  // Initializing GDExtensionInitialization field variables, do not know what any of these are for yet
   final init = rInitialization.ref;
 
   init.minimum_initialization_levelAsInt = 0; 
-  init.initialize   = Pointer.fromFunction<_LevelInitNative>(_onLevelInit);
+
+  // pointers to native function definitions for libgodot to call later
+  init.initialize   = Pointer.fromFunction<_LevelInitNative>(_onLevelInit); 
   init.deinitialize = Pointer.fromFunction<_LevelInitNative>(_onLevelDeinit);
+
   init.userdata = nullptr;
 
-  return 1; // true
+  return 1;
 }
 
+// Creates the Godot instance 
 class GodotWrapper {
+  // Futures that return to notify the rest of the program that the instance has been created
   final Completer<void> _ready = Completer<void>();
   Future<void> onReady() => _ready.future;
 
   late final LibGodotBindings bindings;
   Pointer<Void>? godotInstance;
 
-  // keep these globals until shutdown; don’t free early
+  // These args are necessary for creating the instance because nullptr errors (I don't know their significance)
   late Pointer<Pointer<Char>> _argv;
   late Pointer<Utf8> _arg0;
 
@@ -95,30 +87,33 @@ class GodotWrapper {
   }
 
   GodotWrapper() {
+    // This is required because otherwise creating the instance conflicts with Flutter's build()
+    // There is likely a better way to accomplish this but I don't fully understand Flutter's build cycle
     WidgetsBinding.instance.addPostFrameCallback((_) { 
       final initFuncPtr =
-    Pointer.fromFunction<GDExtensionInitializationFunctionFunction>(onInit, 0);
-    bindings = getGodotBindings();
+      Pointer.fromFunction<GDExtensionInitializationFunctionFunction>(onInit, 0);
+      bindings = getGodotBindings();
 
-    _prepareArgv();
-    final instance = bindings.libgodot_create_godot_instance(
-      0,
-      _argv,
-      initFuncPtr,
-    );
+      _prepareArgv();
+      final instance = bindings.libgodot_create_godot_instance(
+        0,
+        _argv,
+        initFuncPtr,
+      );
 
-    if (instance == nullptr) {
-      return;
-    }
+      // Need to cover this error case
+      if (instance == nullptr) {
+        return;
+      }
 
-    _ready.complete();
-    print("Instance created");
+      _ready.complete();
 
-    godotInstance = instance;
-  });
+      godotInstance = instance;
+    });
+  }
 }
-}
 
+// Eventually this should display a Godot window
 class GodotWidget extends StatefulWidget {
   const GodotWidget({super.key});
 
@@ -141,6 +136,6 @@ class _GodotWidgetState extends State<GodotWidget> {
   
   @override
   Widget build(BuildContext context) {
-    return Text(init ? "Godot ready!" : "Initializing Godot...");
+    return Text(init ? "Initialized successfully" : "Initializing...");
   }
 }

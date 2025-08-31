@@ -511,7 +511,6 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/include",
 					"$(PROJECT_DIR)",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -648,7 +647,6 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/include",
 					"$(PROJECT_DIR)",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -673,7 +671,6 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/include",
 					"$(PROJECT_DIR)",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
